@@ -1,0 +1,396 @@
+{
+  "info": {
+    "name": "Multi-Courier Integration Platform — Unified API",
+    "description": "One unified API in front of many courier partners. Every request body carries `courier_partner`; the rest of the payload is this platform's own normalized schema, identical for every courier.\n\nExample responses on the create / track / cancel requests are **verbatim captures from live calls** against UrbaneBolt UAT (https://uat.urbanebolt.in) — see docs/urbanebolt-uat-samples.md in the repo.\n\nSetup: set the `base_url` variable (default http://localhost:3000). Run \"Create order\" first — it stores `order_id` and `awb_number` into collection variables for the track/cancel requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "courier_partner", "value": "mock", "type": "string" },
+    { "key": "order_id", "value": "DEMO-1", "type": "string" },
+    { "key": "batch_id", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] },
+        "description": "200 when MongoDB is connected, 503 otherwise. Also lists the registered couriers."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"status\": \"ok\",\n    \"database\": \"connected\",\n    \"couriers\": [\"mock\", \"urbanebolt\"],\n    \"uptime_s\": 42\n  },\n  \"request_id\": \"req_1f0f6a1e-1d21-4d3a-9f0e-5f0b0b0a1c11\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "List supported couriers",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/couriers",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "couriers"]
+        },
+        "description": "Which `courier_partner` values this deployment accepts, and what each supports."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/couriers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "couriers"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"couriers\": [\n      { \"courier_partner\": \"mock\", \"capabilities\": { \"serviceability\": true, \"shipping_label\": true, \"cancellation\": true } },\n      { \"courier_partner\": \"urbanebolt\", \"capabilities\": { \"serviceability\": true, \"shipping_label\": true, \"cancellation\": true } }\n    ]\n  },\n  \"request_id\": \"req_2a7c…\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Create order",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.success) {",
+              "  pm.collectionVariables.set('order_id', body.data.order_id);",
+              "  pm.collectionVariables.set('awb_number', body.data.awb_number);",
+              "}",
+              "pm.test('created or idempotent replay', () => pm.expect([200, 201]).to.include(pm.response.code));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "orders"]
+        },
+        "body": {
+          "mode": "raw",
+          "options": { "raw": { "language": "json" } },
+          "raw": "{\n  \"courier_partner\": \"{{courier_partner}}\",\n  \"order_id\": \"{{order_id}}\",\n  \"payment_mode\": \"COD\",\n  \"cod_amount\": 1,\n  \"declared_value\": 100,\n  \"currency\": \"INR\",\n  \"pieces\": 1,\n  \"service_type\": \"SDD\",\n  \"invoice_number\": \"INV0002\",\n  \"invoice_date\": \"2024-10-02\",\n  \"pickup_address\": {\n    \"name\": \"Rohit Athaley\",\n    \"address_line\": \"HOLY FAITH INTERNATIONAL P LTD, Plot 137-138-139 Sector-I Govindpura\",\n    \"city\": \"Govindpura\",\n    \"state\": \"BHOPAL\",\n    \"pincode\": \"122001\",\n    \"country\": \"INDIA\",\n    \"phone\": \"9425018023\",\n    \"email\": \"bhopal@mbdgroup.com\",\n    \"address_type\": \"Seller\"\n  },\n  \"delivery_address\": {\n    \"name\": \"Satyam Convent School\",\n    \"address_line\": \"Plot No. 26-27, Om Nagar Society, Sumbhal, Surat\",\n    \"city\": \"Surat\",\n    \"state\": \"GUJRAT\",\n    \"pincode\": \"122001\",\n    \"country\": \"INDIA\",\n    \"phone\": \"8320226438\",\n    \"email\": \"TEST2@AIL.COM\",\n    \"address_type\": \"Home\"\n  },\n  \"return_address\": {\n    \"name\": \"Rohit Athaley\",\n    \"address_line\": \"HOLY FAITH INTERNATIONAL P LTD, Plot 137-138-139 Sector-I Govindpura\",\n    \"city\": \"Govindpura\",\n    \"state\": \"BHOPAL\",\n    \"pincode\": \"122017\",\n    \"country\": \"INDIA\",\n    \"phone\": \"9425018023\",\n    \"email\": \"bhopal@mbdgroup.com\",\n    \"address_type\": \"Seller\"\n  },\n  \"dimensions\": { \"length_cm\": 12, \"breadth_cm\": 10, \"height_cm\": 10, \"weight_kg\": 1.1 },\n  \"items\": [{ \"description\": \"BOOKS\", \"quantity\": 1, \"value\": 100 }]\n}"
+        },
+        "description": "Creates one shipment. 201 on creation; 200 with `idempotent_replay: true` if this `order_id` was already processed — no second shipment is ever created."
+      },
+      "response": [
+        {
+          "name": "201 Created (UrbaneBolt UAT)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            },
+            "body": { "mode": "raw", "raw": "{ \"courier_partner\": \"urbanebolt\", \"order_id\": \"EASE1786983073\", … }" }
+          },
+          "status": "Created",
+          "code": 201,
+          "header": [
+            { "key": "Content-Type", "value": "application/json" },
+            { "key": "X-Request-Id", "value": "req_4029a2b2-30a7-44b6-b611-efa325158020" }
+          ],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"order_id\": \"EASE1786983073\",\n    \"internal_order_id\": \"ord_9bc209e5-65d3-42f6-a467-3e7ed95d2717\",\n    \"courier_partner\": \"urbanebolt\",\n    \"courier_order_id\": \"EASE1786983073\",\n    \"awb_number\": \"200000007359\",\n    \"status\": \"CREATED\",\n    \"courier_status_code\": null,\n    \"status_description\": null,\n    \"label_url\": \"https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=himPHMijuCAmot7VZq835Xjybl8FN2T5K28xiNRCrEg25LrwZvc5pNnW16Pj4RA5\",\n    \"route_code\": \"GGN/DLHH\",\n    \"estimated_delivery_date\": null,\n    \"batch_id\": null,\n    \"created_at\": \"2026-08-17T16:11:13.591Z\",\n    \"updated_at\": \"2026-08-17T16:11:14.102Z\",\n    \"cancelled_at\": null,\n    \"idempotent_replay\": false\n  },\n  \"request_id\": \"req_4029a2b2-30a7-44b6-b611-efa325158020\"\n}"
+        },
+        {
+          "name": "200 Idempotent replay",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"order_id\": \"EASE1786983073\",\n    \"awb_number\": \"200000007359\",\n    \"status\": \"CREATED\",\n    \"idempotent_replay\": true\n  },\n  \"request_id\": \"req_88a1…\"\n}"
+        },
+        {
+          "name": "400 Unknown courier_partner",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"UNSUPPORTED_COURIER\",\n    \"message\": \"Unsupported courier_partner \\\"delhivery\\\".\",\n    \"details\": { \"supported_couriers\": [\"mock\", \"urbanebolt\"] }\n  },\n  \"request_id\": \"req_5c2b…\"\n}"
+        },
+        {
+          "name": "400 Validation error",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Request validation failed.\",\n    \"fields\": [\n      { \"field\": \"delivery_address\", \"message\": \"Required\" },\n      { \"field\": \"declared_value\", \"message\": \"Number must be greater than or equal to 0\" }\n    ]\n  },\n  \"request_id\": \"req_7d31…\"\n}"
+        },
+        {
+          "name": "422 Courier rejected the lane",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders"]
+            }
+          },
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"COURIER_NOT_SERVICEABLE\",\n    \"message\": \"The courier does not service this pickup/delivery lane.\"\n  },\n  \"request_id\": \"req_9ab2…\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Track order",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/{{order_id}}/track",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "orders", "{{order_id}}", "track"]
+        },
+        "description": "Current status plus the full append-only history. Accepts either your `order_id` or our `internal_order_id`. If the courier is unreachable, the last known state is served rather than failing the read."
+      },
+      "response": [
+        {
+          "name": "200 OK (UrbaneBolt UAT)",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/EASE1786983073/track",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "EASE1786983073", "track"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"order_id\": \"EASE1786983073\",\n    \"internal_order_id\": \"ord_9bc209e5-65d3-42f6-a467-3e7ed95d2717\",\n    \"courier_partner\": \"urbanebolt\",\n    \"awb_number\": \"200000007359\",\n    \"status\": \"CREATED\",\n    \"courier_status_code\": \"MAN\",\n    \"status_description\": \"Shipment Manifested\",\n    \"estimated_delivery_date\": \"2026-08-18\",\n    \"history\": [\n      {\n        \"status\": \"CREATED\",\n        \"courier_status_code\": \"MAN\",\n        \"description\": \"Shipment Manifested\",\n        \"location\": \"Gurgaon\",\n        \"reason_code\": null,\n        \"reason_description\": null,\n        \"occurred_at\": \"2026-08-17T16:11:00.000Z\"\n      }\n    ]\n  },\n  \"request_id\": \"req_1c9d…\"\n}"
+        },
+        {
+          "name": "404 Unknown order",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/NOPE/track",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "NOPE", "track"]
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": { \"code\": \"NOT_FOUND\", \"message\": \"Order \\\"NOPE\\\" not found.\" },\n  \"request_id\": \"req_0e4a…\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Cancel order",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/{{order_id}}/cancel",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "orders", "{{order_id}}", "cancel"]
+        },
+        "description": "Cancels a shipment before pickup. Idempotent — cancelling twice returns 200 again. Cancelling a delivered shipment returns 409 INVALID_STATE."
+      },
+      "response": [
+        {
+          "name": "200 Cancelled (UrbaneBolt UAT)",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/EASE1786983073/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "EASE1786983073", "cancel"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"order_id\": \"EASE1786983073\",\n    \"internal_order_id\": \"ord_9bc209e5-65d3-42f6-a467-3e7ed95d2717\",\n    \"courier_partner\": \"urbanebolt\",\n    \"awb_number\": \"200000007359\",\n    \"status\": \"CANCELLED\",\n    \"status_description\": \"Shipment cancelled at the courier.\",\n    \"cancelled_at\": \"2026-08-17T16:12:02.376Z\"\n  },\n  \"request_id\": \"req_6b1f…\"\n}"
+        },
+        {
+          "name": "409 Already delivered",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/EASE1786983073/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "EASE1786983073", "cancel"]
+            }
+          },
+          "status": "Conflict",
+          "code": 409,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"INVALID_STATE\",\n    \"message\": \"Order \\\"EASE1786983073\\\" is DELIVERED and can no longer be cancelled.\"\n  },\n  \"request_id\": \"req_2f77…\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Bulk create orders",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.success) pm.collectionVariables.set('batch_id', body.data.batch_id);",
+              "pm.test('accepted', () => pm.response.to.have.status(202));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/bulk",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "orders", "bulk"]
+        },
+        "body": {
+          "mode": "raw",
+          "options": { "raw": { "language": "json" } },
+          "raw": "{\n  \"orders\": [\n    {\n      \"courier_partner\": \"{{courier_partner}}\",\n      \"order_id\": \"BULK-1\",\n      \"payment_mode\": \"PREPAID\",\n      \"cod_amount\": 0,\n      \"declared_value\": 1500,\n      \"pieces\": 1,\n      \"pickup_address\": { \"name\": \"Acme Warehouse\", \"address_line\": \"Plot 12, Phase II\", \"city\": \"Gurgaon\", \"state\": \"Haryana\", \"pincode\": \"122017\", \"country\": \"INDIA\", \"phone\": \"9425018023\", \"address_type\": \"Seller\" },\n      \"delivery_address\": { \"name\": \"Priya Menon\", \"address_line\": \"26 Om Nagar Society\", \"city\": \"Gurgaon\", \"state\": \"Haryana\", \"pincode\": \"122001\", \"country\": \"INDIA\", \"phone\": \"8320226438\", \"address_type\": \"Home\" },\n      \"dimensions\": { \"length_cm\": 12, \"breadth_cm\": 10, \"height_cm\": 10, \"weight_kg\": 1.1 },\n      \"items\": [{ \"description\": \"Paperback books\", \"quantity\": 2, \"value\": 750 }]\n    },\n    {\n      \"courier_partner\": \"mock\",\n      \"order_id\": \"BULK-2\",\n      \"payment_mode\": \"COD\",\n      \"cod_amount\": 499,\n      \"declared_value\": 499,\n      \"pieces\": 1,\n      \"pickup_address\": { \"name\": \"Acme Warehouse\", \"address_line\": \"Plot 12, Phase II\", \"city\": \"Gurgaon\", \"state\": \"Haryana\", \"pincode\": \"122017\", \"country\": \"INDIA\", \"phone\": \"9425018023\", \"address_type\": \"Seller\" },\n      \"delivery_address\": { \"name\": \"Ravi Kumar\", \"address_line\": \"14 MG Road\", \"city\": \"Gurgaon\", \"state\": \"Haryana\", \"pincode\": \"122001\", \"country\": \"INDIA\", \"phone\": \"9000000002\", \"address_type\": \"Home\" },\n      \"dimensions\": { \"length_cm\": 10, \"breadth_cm\": 10, \"height_cm\": 10, \"weight_kg\": 0.5 },\n      \"items\": [{ \"description\": \"Phone case\", \"quantity\": 1, \"value\": 499 }]\n    }\n  ]\n}"
+        },
+        "description": "Up to 100 orders. Each may target a different `courier_partner`. Returns 202 immediately with a `batch_id`; the orders are processed off the request path with bounded concurrency. Poll `status_url` for per-order outcomes."
+      },
+      "response": [
+        {
+          "name": "202 Accepted",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "bulk"]
+            }
+          },
+          "status": "Accepted",
+          "code": 202,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"batch_id\": \"batch_af1a5bcc-d0e8-403d-bbe5-3e55974ef456\",\n    \"status\": \"QUEUED\",\n    \"counts\": { \"total\": 2, \"succeeded\": 0, \"failed\": 0, \"duplicate\": 0, \"pending\": 2 },\n    \"created_at\": \"2026-08-17T16:32:52.383Z\",\n    \"started_at\": null,\n    \"completed_at\": null,\n    \"results\": [\n      { \"order_id\": \"BULK-1\", \"courier_partner\": \"urbanebolt\", \"status\": \"QUEUED\", \"internal_order_id\": null, \"awb_number\": null, \"error_code\": null, \"reason\": null, \"processed_at\": null },\n      { \"order_id\": \"BULK-2\", \"courier_partner\": \"mock\", \"status\": \"QUEUED\", \"internal_order_id\": null, \"awb_number\": null, \"error_code\": null, \"reason\": null, \"processed_at\": null }\n    ],\n    \"status_url\": \"/api/v1/orders/bulk/batch_af1a5bcc-d0e8-403d-bbe5-3e55974ef456\"\n  },\n  \"request_id\": \"req_e426d02d-f0b9-4e55-86e7-fa2c5820dafd\"\n}"
+        },
+        {
+          "name": "400 Too many orders",
+          "originalRequest": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "bulk"]
+            }
+          },
+          "status": "Bad Request",
+          "code": 400,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": {\n    \"code\": \"VALIDATION_ERROR\",\n    \"message\": \"Request validation failed.\",\n    \"fields\": [{ \"field\": \"orders\", \"message\": \"Array must contain at most 100 element(s)\" }]\n  },\n  \"request_id\": \"req_3b0c…\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get batch status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/orders/bulk/{{batch_id}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "orders", "bulk", "{{batch_id}}"]
+        },
+        "description": "Per-order outcomes. `DUPLICATE` means that `order_id` had already been processed, so no second shipment was created — the idempotency guarantee, visible in the response. Every failed item carries a normalized `error_code` and a human-readable `reason` (our wording; the courier's raw error is logged, never returned)."
+      },
+      "response": [
+        {
+          "name": "200 Completed with errors (partial success)",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/bulk/batch_af1a5bcc-d0e8-403d-bbe5-3e55974ef456",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "bulk", "batch_af1a5bcc-d0e8-403d-bbe5-3e55974ef456"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"batch_id\": \"batch_af1a5bcc-d0e8-403d-bbe5-3e55974ef456\",\n    \"status\": \"COMPLETED_WITH_ERRORS\",\n    \"counts\": { \"total\": 3, \"succeeded\": 1, \"failed\": 2, \"duplicate\": 0, \"pending\": 0 },\n    \"created_at\": \"2026-08-17T16:32:52.383Z\",\n    \"started_at\": \"2026-08-17T16:32:52.391Z\",\n    \"completed_at\": \"2026-08-17T16:32:53.020Z\",\n    \"results\": [\n      { \"order_id\": \"BULK-1\", \"courier_partner\": \"urbanebolt\", \"status\": \"SUCCEEDED\", \"internal_order_id\": \"ord_1a2b…\", \"awb_number\": \"200000007360\", \"error_code\": null, \"reason\": null, \"processed_at\": \"2026-08-17T16:32:52.901Z\" },\n      { \"order_id\": \"BULK-2\", \"courier_partner\": \"urbanebolt\", \"status\": \"FAILED\", \"internal_order_id\": null, \"awb_number\": null, \"error_code\": \"COURIER_UNAVAILABLE\", \"reason\": \"UrbaneBolt auth endpoint returned 5xx.\", \"processed_at\": \"2026-08-17T16:32:52.782Z\" },\n      { \"order_id\": \"BULK-3\", \"courier_partner\": \"not-a-real-courier\", \"status\": \"FAILED\", \"internal_order_id\": null, \"awb_number\": null, \"error_code\": \"UNSUPPORTED_COURIER\", \"reason\": \"Unsupported courier_partner \\\"not-a-real-courier\\\".\", \"processed_at\": \"2026-08-17T16:32:52.393Z\" }\n    ]\n  },\n  \"request_id\": \"req_7b86de42-b02d-4e67-96a5-30a426d99ea1\"\n}"
+        },
+        {
+          "name": "200 Idempotent resubmission (all duplicates)",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/bulk/{{batch_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "bulk", "{{batch_id}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": true,\n  \"data\": {\n    \"batch_id\": \"batch_9d2e…\",\n    \"status\": \"COMPLETED\",\n    \"counts\": { \"total\": 2, \"succeeded\": 0, \"failed\": 0, \"duplicate\": 2, \"pending\": 0 },\n    \"results\": [\n      { \"order_id\": \"BULK-1\", \"courier_partner\": \"mock\", \"status\": \"DUPLICATE\", \"internal_order_id\": \"ord_1a2b…\", \"awb_number\": \"MOCK6F2A91C34D08\", \"error_code\": null, \"reason\": \"Order already existed; no new shipment was created.\", \"processed_at\": \"2026-08-17T16:40:11.204Z\" },\n      { \"order_id\": \"BULK-2\", \"courier_partner\": \"mock\", \"status\": \"DUPLICATE\", \"internal_order_id\": \"ord_3c4d…\", \"awb_number\": \"MOCK118BEA77C902\", \"error_code\": null, \"reason\": \"Order already existed; no new shipment was created.\", \"processed_at\": \"2026-08-17T16:40:11.209Z\" }\n    ]\n  },\n  \"request_id\": \"req_c41a…\"\n}"
+        },
+        {
+          "name": "404 Unknown batch",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/orders/bulk/batch_nope",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "orders", "bulk", "batch_nope"]
+            }
+          },
+          "status": "Not Found",
+          "code": 404,
+          "header": [{ "key": "Content-Type", "value": "application/json" }],
+          "body": "{\n  \"success\": false,\n  \"error\": { \"code\": \"NOT_FOUND\", \"message\": \"Batch \\\"batch_nope\\\" not found.\" },\n  \"request_id\": \"req_af03…\"\n}"
+        }
+      ]
+    }
+  ]
+}
