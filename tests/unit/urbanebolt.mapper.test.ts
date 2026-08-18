@@ -153,7 +153,7 @@ describe('fromManifestResponse', () => {
         orderNumber: 'EASE1786983073',
         awbNumber: 200000007359,
         routeCode: 'GGN/DLHH',
-        shippingLabel: 'https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=himPHM',
+        shippingLabel: 'https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=<redacted-label-key>',
         customerCode: 'UEBCUS0008',
       },
     ],
@@ -165,7 +165,7 @@ describe('fromManifestResponse', () => {
       courierOrderId: 'EASE1786983073',
       awbNumber: '200000007359',
       status: ShipmentStatus.CREATED,
-      labelUrl: 'https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=himPHM',
+      labelUrl: 'https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=<redacted-label-key>',
       routeCode: 'GGN/DLHH',
     });
   });

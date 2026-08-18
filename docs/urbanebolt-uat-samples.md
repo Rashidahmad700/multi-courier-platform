@@ -12,8 +12,9 @@ These captures are the source of truth for
 replayed as fixtures in
 [`tests/unit/urbanebolt.mapper.test.ts`](../tests/unit/urbanebolt.mapper.test.ts).
 
-Credentials are shown as `$USERNAME` / `$PASSWORD` / `$TOKEN`; the real values
-belong in `.env`.
+Credentials are shown as `$USERNAME` / `$PASSWORD` / `$TOKEN`, and any token or
+signed-URL key returned in a captured response is replaced with a `<redacted-…>`
+placeholder. The real values belong in `.env` and are never committed.
 
 ---
 
@@ -31,7 +32,7 @@ Response — HTTP 200:
 
 ```json
 {
-  "access_token": "rLUYvVwhrvg6AJgQzTivk33soP3ltb",
+  "access_token": "<redacted-bearer-token>",
   "expires_in": 86400,
   "token_type": "Bearer",
   "expires": "2026-08-18T18:05:45.803396",
@@ -98,7 +99,7 @@ Response — HTTP 200:
       "orderNumber": "EASE1786983073",
       "awbNumber": 200000007359,
       "routeCode": "GGN/DLHH",
-      "shippingLabel": "https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=himPHMijuCAmot7VZq835Xjybl8FN2T5K28xiNRCrEg25LrwZvc5pNnW16Pj4RA5",
+      "shippingLabel": "https://api.uat.urbanebolt.in/api/v1/services/print-label/?key=<redacted-label-key>",
       "customerCode": "UEBCUS0008"
     }
   ],
